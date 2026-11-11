@@ -197,11 +197,11 @@ static void softsurface_blitBufferIOS(UINTTYPE *destBuffer, int32_t dstW, int32_
 
     for (int32_t y = 0; y < dstH; ++y)
     {
-        int32_t const srcY = min((int64_t)y * bufferRes.y / destBufferRes.y, (int64_t)bufferRes.y - 1);
-        UINTTYPE *dst = destBuffer + (size_t)y * destBufferRes.x;
+        int32_t const srcY = min((int64_t)y * bufferRes.y / dstH, (int64_t)bufferRes.y - 1);
+        UINTTYPE *dst = (UINTTYPE *)((uint8_t *)destBuffer + (size_t)y * dstPitchBytes);
         uint8_t const *src = buffer + (size_t)srcY * bufferRes.x;
 
-        for (int32_t x = 0; x < destBufferRes.x; ++x)
+        for (int32_t x = 0; x < dstW; ++x)
         {
             int32_t const srcX = min((int64_t)x * bufferRes.x / dstW, (int64_t)bufferRes.x - 1);
             dst[x] = (UINTTYPE)pPal[src[srcX]];
