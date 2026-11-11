@@ -1,0 +1,103 @@
+diff --git a/source/build/include/softsurface.h b/source/build/include/softsurface.h
+index 1317e02..24df340 100644
+--- a/source/build/include/softsurface.h
++++ b/source/build/include/softsurface.h
+@@ -41,7 +41,13 @@ vec2_t softsurface_getDestinationBufferResolution();
+ 
+ // Blit the surface's pixel buffer to the destination buffer using the palette set with softsurface_setPalette().
+ // If the surface is not initialized, the function returns immediately.
++// On iOS the destination's real width, height and pitch (bytes) must be given, because the SDL
++// surface may not match the resolution the software renderer was configured with.
+ void softsurface_blitBuffer(uint32_t* destBuffer,
+-                            uint32_t destBpp);
++                            uint32_t destBpp
++#ifdef EDUKE32_IOS
++                            , int32_t destW, int32_t destH, int32_t destPitchBytes
++#endif
++                            );
+ 
+ #endif /* SOFTSURFACE_H_ */
+diff --git a/source/build/src/sdlayer.cpp b/source/build/src/sdlayer.cpp
+index 82540fb..0607949 100644
+--- a/source/build/src/sdlayer.cpp
++++ b/source/build/src/sdlayer.cpp
+@@ -2264,7 +2264,12 @@ void videoShowFrame(int32_t w)
+     if (iOSPresentTrace)
+         LOG_F(INFO, "iOS present checkpoint: before software blit");
+ #endif
++#ifdef EDUKE32_IOS
++    softsurface_blitBuffer((uint32_t*) sdl_surface->pixels, sdl_surface->format->BitsPerPixel,
++                           sdl_surface->w, sdl_surface->h, sdl_surface->pitch);
++#else
+     softsurface_blitBuffer((uint32_t*) sdl_surface->pixels, sdl_surface->format->BitsPerPixel);
++#endif
+ #ifdef EDUKE32_IOS
+     if (iOSPresentTrace)
+         LOG_F(INFO, "iOS present checkpoint: after software blit");
+diff --git a/source/build/src/softsurface.cpp b/source/build/src/softsurface.cpp
+index 682055a..2d05787 100644
+--- a/source/build/src/softsurface.cpp
++++ b/source/build/src/softsurface.cpp
+@@ -186,21 +186,24 @@ void softsurface_blitBufferInternal(UINTTYPE* destBuffer)
+ }
+ 
+ #ifdef EDUKE32_IOS
++// Scales the 8-bit software buffer to the actual SDL surface, honouring the
++// surface's own width/height/pitch instead of assuming destBufferRes is what
++// SDL handed back (it often isn't on UIKit, e.g. when fullscreen is rejected).
+ template <typename UINTTYPE>
+-static void softsurface_blitBufferIOS(UINTTYPE *destBuffer)
++static void softsurface_blitBufferIOS(UINTTYPE *destBuffer, int32_t dstW, int32_t dstH, int32_t dstPitchBytes)
+ {
+-    if (bufferRes.x <= 0 || bufferRes.y <= 0 || destBufferRes.x <= 0 || destBufferRes.y <= 0)
++    if (bufferRes.x <= 0 || bufferRes.y <= 0 || dstW <= 0 || dstH <= 0 || dstPitchBytes <= 0)
+         return;
+ 
+-    for (int32_t y = 0; y < destBufferRes.y; ++y)
++    for (int32_t y = 0; y < dstH; ++y)
+     {
+-        int32_t const srcY = min((int64_t)y * bufferRes.y / destBufferRes.y, (int64_t)bufferRes.y - 1);
+-        UINTTYPE *dst = destBuffer + (size_t)y * destBufferRes.x;
++        int32_t const srcY = min((int64_t)y * bufferRes.y / dstH, (int64_t)bufferRes.y - 1);
++        UINTTYPE *dst = (UINTTYPE *)((uint8_t *)destBuffer + (size_t)y * dstPitchBytes);
+         uint8_t const *src = buffer + (size_t)srcY * bufferRes.x;
+ 
+-        for (int32_t x = 0; x < destBufferRes.x; ++x)
++        for (int32_t x = 0; x < dstW; ++x)
+         {
+-            int32_t const srcX = min((int64_t)x * bufferRes.x / destBufferRes.x, (int64_t)bufferRes.x - 1);
++            int32_t const srcX = min((int64_t)x * bufferRes.x / dstW, (int64_t)bufferRes.x - 1);
+             dst[x] = (UINTTYPE)pPal[src[srcX]];
+         }
+     }
+@@ -208,7 +211,11 @@ static void softsurface_blitBufferIOS(UINTTYPE *destBuffer)
+ #endif
+ 
+ void softsurface_blitBuffer(uint32_t* destBuffer,
+-                            uint32_t destBpp)
++                            uint32_t destBpp
++#ifdef EDUKE32_IOS
++                            , int32_t destW, int32_t destH, int32_t destPitchBytes
++#endif
++                            )
+ {
+     if (!buffer)
+         return;
+@@ -220,7 +227,7 @@ void softsurface_blitBuffer(uint32_t* destBuffer,
+     case 15:
+     case 16:
+ #ifdef EDUKE32_IOS
+-        softsurface_blitBufferIOS<uint16_t>((uint16_t *)destBuffer);
++        softsurface_blitBufferIOS<uint16_t>((uint16_t *)destBuffer, destW, destH, destPitchBytes);
+ #else
+         softsurface_blitBufferInternal<uint16_t>((uint16_t*) destBuffer);
+ #endif
+@@ -228,7 +235,7 @@ void softsurface_blitBuffer(uint32_t* destBuffer,
+     case 24:
+     case 32:
+ #ifdef EDUKE32_IOS
+-        softsurface_blitBufferIOS<uint32_t>(destBuffer);
++        softsurface_blitBufferIOS<uint32_t>(destBuffer, destW, destH, destPitchBytes);
+ #else
+         softsurface_blitBufferInternal<uint32_t>(destBuffer);
+ #endif
