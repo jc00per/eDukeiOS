@@ -2,7 +2,7 @@
  * softsurface.h
  *  An 8-bit rendering surface that can quickly upscale and blit 8-bit paletted buffers to an external 32-bit screen buffer.
  *
- * Copyright © 2018, Alex Dawson. All rights reserved.
+ * Copyright Â© 2018, Alex Dawson. All rights reserved.
  */
 
 #ifndef SOFTSURFACE_H_
@@ -42,6 +42,9 @@ vec2_t softsurface_getDestinationBufferResolution();
 // Blit the surface's pixel buffer to the destination buffer using the palette set with softsurface_setPalette().
 // If the surface is not initialized, the function returns immediately.
 void softsurface_blitBuffer(uint32_t* destBuffer,
-                            uint32_t destBpp);
-
+                           uint32_t destBpp
+#ifdef EDUKE32_IOS
+                            , int32_t destW, int32_t destH, int32_t destPitchBytes
+#endif
+                            );
 #endif /* SOFTSURFACE_H_ */
