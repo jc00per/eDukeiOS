@@ -2262,9 +2262,14 @@ void videoShowFrame(int32_t w)
     if (SDL_MUSTLOCK(sdl_surface)) SDL_LockSurface(sdl_surface);
 #ifdef EDUKE32_IOS
     if (iOSPresentTrace)
-        LOG_F(INFO, "iOS present checkpoint: before software blit");
+        LOG_F(INFO, "iOS present checkpoint: before software blit");   
 #endif
+    #ifdef EDUKE32_IOS
+    softsurface_blitBuffer((uint32_t*) sdl_surface->pixels, sdl_surface->format->BitsPerPixel,
+                           sdl_surface->w, sdl_surface->h, sdl_surface->pitch);
+#else
     softsurface_blitBuffer((uint32_t*) sdl_surface->pixels, sdl_surface->format->BitsPerPixel);
+#endif    
 #ifdef EDUKE32_IOS
     if (iOSPresentTrace)
         LOG_F(INFO, "iOS present checkpoint: after software blit");
