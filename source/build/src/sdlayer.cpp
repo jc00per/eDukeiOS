@@ -2541,6 +2541,19 @@ int32_t handleevents_sdlcommon(SDL_Event *ev)
             fallthrough__;
         case SDL_CONTROLLERAXISMOTION:
 #endif
+#ifdef EDUKE32_IOS
+            {
+                // Controller debug: log an axis only when it moves noticeably since the last logged value.
+                static int32_t lastLoggedAxis[32];
+                int const ax = ev->jaxis.axis;
+                if (ax >= 0 && ax < 32 && abs(ev->jaxis.value - lastLoggedAxis[ax]) > 4000)
+                {
+                    lastLoggedAxis[ax] = ev->jaxis.value;
+                    LOG_F(INFO, "iOS controller axis %d = %d (numAxes=%d gamecontroller=%d appactive=%d)",
+                          ax, (int)ev->jaxis.value, joystick.numAxes, (int)joystick.isGameController, (int)appactive);
+                }
+            }
+#endif
             if (appactive && ev->jaxis.axis < joystick.numAxes)
             {
                 joystick.pAxis[ev->jaxis.axis] = ev->jaxis.value;
@@ -2580,6 +2593,11 @@ int32_t handleevents_sdlcommon(SDL_Event *ev)
             fallthrough__;
         case SDL_CONTROLLERBUTTONDOWN:
         case SDL_CONTROLLERBUTTONUP:
+#endif
+#ifdef EDUKE32_IOS
+            LOG_F(INFO, "iOS controller button %d %s (numButtons=%d gamecontroller=%d appactive=%d)",
+                  (int)ev->jbutton.button, ev->jbutton.state == SDL_PRESSED ? "down" : "up",
+                  joystick.numButtons, (int)joystick.isGameController, (int)appactive);
 #endif
             if (appactive && ev->jbutton.button < joystick.numButtons)
             {
